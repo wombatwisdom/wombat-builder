@@ -1,0 +1,18 @@
+package main
+
+import (
+	"context"
+
+	"github.com/redpanda-data/benthos/v4/public/service"
+
+	// Import pure and standard io Benthos components
+	_ "github.com/redpanda-data/benthos/v4/public/components/io"
+	_ "github.com/redpanda-data/benthos/v4/public/components/pure"
+
+	// Customised imports{{range $i, $import := .Packages}}
+	_ "{{$import}}"{{end}}
+)
+
+func main() {
+	service.RunCLI(context.Background())
+}
