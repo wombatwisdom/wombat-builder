@@ -38,6 +38,8 @@ func (b *Builder) Run(ctx context.Context) error {
     return fmt.Errorf("failed to watch builds: %w", err)
   }
 
+  log.Info().Msgf("builder started with %d workers", cap(b.queue))
+
   for {
     select {
     case <-ctx.Done():

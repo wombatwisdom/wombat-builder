@@ -45,6 +45,8 @@ func (s *Service) Run(ctx context.Context) error {
     "response-schema": shared.SchemaForOrDie(&BuildRequestResponse{}),
   }))
 
+  log.Info().Msgf("service started: %v", svc.Info().ID)
+
   // -- wait for the context to complete
   select {
   case <-ctx.Done():

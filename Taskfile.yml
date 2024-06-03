@@ -1,0 +1,11 @@
+version: '3'
+
+tasks:
+  setup:
+    desc: Configure the nats environment
+    vars:
+      CONTEXT: "ngs_wombat_cli"
+    cmds:
+      - nats --context={{.CONTEXT}} kv add builds --storage=file --max-bucket-size=500M || true
+      - nats --context={{.CONTEXT}} kv add repos --storage=file --max-bucket-size=500M || true
+      - nats --context={{.CONTEXT}} obj add artifacts --storage=file --max-bucket-size=3G || true
