@@ -13,7 +13,7 @@ type Builds struct {
 }
 
 func (b *Builds) Watch(ctx context.Context) (jetstream.KeyWatcher, error) {
-  return b.kv.Watch(ctx, "build.*")
+  return b.kv.Watch(ctx, "build.>")
 }
 
 func (b *Builds) Get(ctx context.Context, key string) (*model.Build, error) {

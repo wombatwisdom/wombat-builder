@@ -39,7 +39,8 @@ func (s *Service) Run(ctx context.Context) error {
     return err
   }
 
-  registerEndpointOrDie(svc, "request", getBuildRequestHandler(s.s), micro.WithEndpointMetadata(map[string]string{
+  buildGrp := svc.AddGroup("build")
+  registerEndpointOrDie(buildGrp, "request", getBuildRequestHandler(s.s), micro.WithEndpointMetadata(map[string]string{
     "description":     "Request a build",
     "request-schema":  shared.SchemaForOrDie(&BuildRequestRequest{}),
     "response-schema": shared.SchemaForOrDie(&BuildRequestResponse{}),

@@ -40,12 +40,22 @@ func (b *Builder) Run(ctx context.Context) error {
 
   log.Info().Msgf("builder started with %d workers", cap(b.queue))
 
+  replayDone := false
   for {
     select {
     case <-ctx.Done():
       return nil
     case update := <-kw.Updates():
       if update == nil {
+        if !replayDone {
+          log.Info().Msg("done replaying build status, starting to process updates")
+          replayDone = true
+        }
+        continue
+      }
+
+      // -- skip updates until the replay is done
+      if !replayDone {
         continue
       }
 
@@ -57,19 +67,25 @@ func (b *Builder) Run(ctx context.Context) error {
       var build model.Build
       if err := json.Unmarshal(update.Value(), &build); err != nil {
         log.Error().Err(err).Msg("failed to unmarshal build")
+        continue
+      }
+
+      if build.Status != model.BuildStatusNew {
+        continue
       }
 
       // -- this is where the race starts. We will update the build state and try to write it. If the
       // -- write succeeds, we are the first ones to claim the build and we can start building it
       // -- otherwise, we will ignore the build and let the other builder handle it
       build.Builder = b.Id
-      if _, err := b.s.Builds.Update(ctx, update.Key(), &build, update.Revision()); err != nil {
+      rev, err := b.s.Builds.Update(ctx, update.Key(), &build, update.Revision())
+      if err != nil {
         // TODO: we actually need to check if the error is a conflict error
         continue
       }
 
       // -- if we made it here, we can start the build
-      b.queue <- buildWithRevision{build, update.Revision()}
+      b.queue <- buildWithRevision{build, rev}
     }
   }
 }
@@ -82,6 +98,8 @@ func (b *Builder) worker(ctx context.Context, id int) {
     case <-ctx.Done():
       return
     case build := <-b.queue:
+      logger.Debug().Str("build", build.Id()).Msg("starting build")
+
       // -- update the build status to pending
       build.Status = model.BuildStatusBuilding
 

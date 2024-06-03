@@ -43,11 +43,7 @@ func (a *Api) Run(ctx context.Context) error {
     IdleTimeout:  10 * time.Second,
   }
 
-  router := mux.NewRouter().StrictSlash(true)
-
-  buildRouter := router.PathPrefix("/builds").Subrouter().StrictSlash(true)
-  buildRouter.Handle("/", createHandlerFunc(a.nc, "build.request")).Methods(http.MethodPost)
-  buildRouter.Handle("/{bid}/artifact", createObjectReader(a.artifacts, "bid")).Methods(http.MethodPost)
+  router := mux.NewRouter()
 
   router.Use(func(inner http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -59,11 +55,32 @@ func (a *Api) Run(ctx context.Context) error {
           Msgf("processing time: %dms", time.Since(start).Milliseconds())
       }()
 
+      log.Info().
+        Str("method", r.Method).
+        Str("path", r.RequestURI).
+        Msg("requested")
+
       inner.ServeHTTP(w, r)
     })
   })
 
+  buildRouter := router.PathPrefix("/builds").Subrouter()
+  buildRouter.Handle("", createHandlerFunc(a.nc, "build.request")).Methods(http.MethodPost)
+  buildRouter.Handle("/{bid}/artifact", createObjectReader(a.artifacts, "bid")).Methods(http.MethodGet)
+
   log.Info().Msgf("api running on port %d", a.port)
+  router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+    url, _ := route.GetPathTemplate()
+    met, err := route.GetMethods()
+    if err != nil {
+      return nil
+    }
+
+    log.Info().Msgf("api %s %s", url, met)
+    return nil
+  })
+  server.Handler = router
+
   return server.ListenAndServe()
 }
 

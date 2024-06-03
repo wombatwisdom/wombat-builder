@@ -15,6 +15,7 @@ type (
     Goarch    string   `json:"goarch" jsonschema_description:"The target architecture"`
     GoVersion string   `json:"goVersion" jsonschema_description:"The Go version to use"`
     Packages  []string `json:"packages" jsonschema_description:"The packages to build"`
+    Force     bool     `json:"force" jsonschema_description:"Whether to force a rebuild"`
   }
 
   BuildRequestResponse struct {
@@ -79,7 +80,7 @@ func getBuildRequestHandler(s *store.Store) micro.HandlerFunc {
       return
     }
 
-    if existing != nil {
+    if !req.Force && existing != nil {
       result := BuildRequestResponse{
         Id:     existing.Id(),
         Status: existing.Status,

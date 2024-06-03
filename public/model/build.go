@@ -5,13 +5,14 @@ import (
   "github.com/mitchellh/hashstructure/v2"
   "github.com/rs/zerolog/log"
   "sort"
+  "strings"
 )
 
 type (
   BuildIdentity struct {
     Goos      string    `json:"goos"`
     Goarch    string    `json:"goarch"`
-    GoVersion string    `json:"goVersion"`
+    GoVersion string    `json:"goversion"`
     Packages  []Package `json:"packages"`
   }
   Build struct {
@@ -90,5 +91,5 @@ func (b Build) Id() string {
     log.Panic().Err(err).Msg("failed to hash build")
   }
 
-  return fmt.Sprintf("build.%s.%s.%s.%x", b.Goos, b.Goarch, b.GoVersion, hash)
+  return fmt.Sprintf("build.%s.%s.%s.%x", b.Goos, b.Goarch, strings.ReplaceAll(b.GoVersion, ".", "_"), hash)
 }
