@@ -46,6 +46,12 @@ func (s *Service) Run(ctx context.Context) error {
     "response-schema": shared.SchemaForOrDie(&BuildRequestResponse{}),
   }))
 
+  registerEndpointOrDie(buildGrp, "list", getBuildListHandler(s.s), micro.WithEndpointMetadata(map[string]string{
+    "description":     "List builds",
+    "request-schema":  shared.SchemaForOrDie(&BuildListRequest{}),
+    "response-schema": shared.SchemaForOrDie(&BuildListResponse{}),
+  }))
+
   log.Info().Msgf("service started: %v", svc.Info().ID)
 
   // -- wait for the context to complete

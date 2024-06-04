@@ -11,7 +11,7 @@ const (
   JetstreamOSArtifacts = "artifacts"
 )
 
-func NewStore(js jetstream.JetStream) (*Store, error) {
+func NewStore(js jetstream.JetStream, withIndex bool) (*Store, error) {
   ctx := context.Background()
   builds, err := js.KeyValue(ctx, JetstreamKVBuilds)
   if err != nil {
@@ -28,15 +28,25 @@ func NewStore(js jetstream.JetStream) (*Store, error) {
     return nil, err
   }
 
+  var bi *BuildIndex
+  if withIndex {
+    bi, err = NewBuildIndex(ctx, js)
+    if err != nil {
+      return nil, err
+    }
+  }
+
   return &Store{
-    Artifacts: &Artifacts{obj: artifacts},
-    Builds:    &Builds{kv: builds},
-    Repos:     &Repos{kv: repos},
+    Artifacts:   &Artifacts{obj: artifacts},
+    Builds:      &Builds{kv: builds},
+    Repos:       &Repos{kv: repos},
+    BuildsIndex: bi,
   }, nil
 }
 
 type Store struct {
-  Artifacts *Artifacts
-  Builds    *Builds
-  Repos     *Repos
+  Artifacts   *Artifacts
+  Builds      *Builds
+  BuildsIndex *BuildIndex
+  Repos       *Repos
 }

@@ -11,6 +11,7 @@ import (
   "github.com/rs/zerolog/log"
   "io"
   "net/http"
+  "net/url"
   "time"
 )
 
@@ -66,14 +67,27 @@ func (a *Api) Run(ctx context.Context) error {
 
   buildRouter := router.PathPrefix("/builds").Subrouter()
   buildRouter.Handle("", createHandlerFunc(a.nc, "build.request")).Methods(http.MethodPost)
-  buildRouter.Handle("/{bid}/artifact", createObjectReader(a.artifacts, "bid")).Methods(http.MethodGet)
+  buildRouter.Handle("", createHandlerFuncWithCallback(a.nc, "build.list", func(r *http.Request) ([]byte, error) {
+    q, err := url.QueryUnescape(r.URL.Query().Get("q"))
+    if err != nil {
+      return nil, err
+    }
+
+    return []byte(fmt.Sprintf("{\"query\": \"%s\"}", q)), nil
+  })).Methods(http.MethodGet)
+
+  artifactRouter := router.PathPrefix("/artifacts").Subrouter()
+  artifactRouter.Handle("/{arch}/{os}/{ver}/{hash}", createObjectReader(a.artifacts, func(r *http.Request) string {
+    params := mux.Vars(r)
+    return fmt.Sprintf("build.%s.%s.%s.%s", params["arch"], params["os"], params["ver"], params["hash"])
+  })).Methods(http.MethodGet)
 
   log.Info().Msgf("api running on port %d", a.port)
   router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
     url, _ := route.GetPathTemplate()
     met, err := route.GetMethods()
     if err != nil {
-      return nil
+      met = []string{}
     }
 
     log.Info().Msgf("api %s %s", url, met)
@@ -85,8 +99,14 @@ func (a *Api) Run(ctx context.Context) error {
 }
 
 func createHandlerFunc(nc *nats.Conn, endpoint string) http.HandlerFunc {
+  return createHandlerFuncWithCallback(nc, endpoint, func(r *http.Request) ([]byte, error) {
+    return io.ReadAll(r.Body)
+  })
+}
+
+func createHandlerFuncWithCallback(nc *nats.Conn, endpoint string, cb func(r *http.Request) ([]byte, error)) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
-    b, err := io.ReadAll(r.Body)
+    b, err := cb(r)
     if err != nil {
       w.WriteHeader(http.StatusBadRequest)
       return
@@ -106,10 +126,9 @@ func createHandlerFunc(nc *nats.Conn, endpoint string) http.HandlerFunc {
   }
 }
 
-func createObjectReader(obj jetstream.ObjectStore, idParam string) http.HandlerFunc {
+func createObjectReader(obj jetstream.ObjectStore, idCb func(r *http.Request) string) http.HandlerFunc {
   return func(w http.ResponseWriter, r *http.Request) {
-    params := mux.Vars(r)
-    id := params[idParam]
+    id := idCb(r)
 
     or, err := obj.Get(r.Context(), id)
     if err != nil {
@@ -124,6 +143,7 @@ func createObjectReader(obj jetstream.ObjectStore, idParam string) http.HandlerF
     }
     defer or.Close()
 
+    w.Header().Set("Content-Disposition", "attachment; filename=\"wombat\"")
     if _, err := io.Copy(w, or); err != nil {
       w.WriteHeader(http.StatusInternalServerError)
       w.Write([]byte(err.Error()))

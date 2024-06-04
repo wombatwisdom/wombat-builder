@@ -33,7 +33,7 @@ var AllCommand = &cli.Command{
     }
     defer nc.Close()
 
-    s, err := store.NewStore(js)
+    s, err := store.NewStore(js, true)
     if err != nil {
       return fmt.Errorf("failed to create store: %w", err)
     }

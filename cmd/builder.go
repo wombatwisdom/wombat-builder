@@ -32,7 +32,7 @@ The number of workers can be configured using the --workers flag and is set to t
     }
     defer nc.Close()
 
-    s, err := store.NewStore(js)
+    s, err := store.NewStore(js, false)
     if err != nil {
       return fmt.Errorf("failed to create store: %w", err)
     }
