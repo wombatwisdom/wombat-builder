@@ -117,13 +117,16 @@ func (b *Builder) worker(ctx context.Context, id int) {
         oi, err := b.s.Artifacts.WriteFile(ctx, build.Id(), artifactPath)
         if err == nil {
           build.Artifact = model.ArtifactReference(oi.Name)
+          build.Builder = ""
           build.Status = model.BuildStatusSuccess
         } else {
           build.Status = model.BuildStatusFailed
+          build.Builder = ""
           build.Error = err.Error()
         }
       } else {
         build.Status = model.BuildStatusFailed
+        build.Builder = ""
         build.Error = err.Error()
       }
 

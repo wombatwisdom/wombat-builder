@@ -10,7 +10,7 @@ import (
 	_ "github.com/redpanda-data/benthos/v4/public/components/pure"
 
 	// Customised imports{{range $i, $import := .Packages}}
-	_ "{{$import}}"{{end}}
+	_ "{{$import.Url}}"{{end}}
 )
 
 func main() {

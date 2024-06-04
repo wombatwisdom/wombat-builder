@@ -76,6 +76,10 @@ func (t *BuildTask) generate(dir string, logger *zerolog.Logger) error {
   for f, tmpl := range templates {
     logger.Debug().Msgf("generating %v", f)
 
+    if err := os.MkdirAll(path.Dir(filepath.Join(dir, f)), 0755); err != nil {
+      return fmt.Errorf("failed to create dir: %w", err)
+    }
+
     outFile, err := os.Create(filepath.Join(dir, f))
     if err != nil {
       return fmt.Errorf("failed to create %v: %w", f, err)
