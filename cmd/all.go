@@ -25,6 +25,11 @@ var AllCommand = &cli.Command{
       Value:   runtime.NumCPU(),
       EnvVars: []string{"WORKERS"},
     },
+    &cli.BoolFlag{
+      Name:  "ui",
+      Usage: "enable the ui",
+      Value: false,
+    },
   }...),
   Action: func(cCtx *cli.Context) error {
     nc, js, err := cmd.ConnectNats(cCtx)

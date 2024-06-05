@@ -2,6 +2,7 @@ package api
 
 import (
   "context"
+  "embed"
   "errors"
   "fmt"
   "github.com/benthosdev/benthos-builder/internal/store"
@@ -10,18 +11,23 @@ import (
   "github.com/nats-io/nats.go/jetstream"
   "github.com/rs/zerolog/log"
   "io"
+  "io/fs"
   "net/http"
   "net/url"
   "time"
 )
 
+//go:embed web
+var web embed.FS
+
 type Api struct {
   port      int
   nc        *nats.Conn
   artifacts jetstream.ObjectStore
+  enableUi  bool
 }
 
-func NewApi(nc *nats.Conn, js jetstream.JetStream, port int) (*Api, error) {
+func NewApi(nc *nats.Conn, js jetstream.JetStream, port int, enableUi bool) (*Api, error) {
   artifacts, err := js.ObjectStore(context.Background(), store.JetstreamOSArtifacts)
   if err != nil {
     return nil, fmt.Errorf("failed to create object store: %w", err)
@@ -31,6 +37,7 @@ func NewApi(nc *nats.Conn, js jetstream.JetStream, port int) (*Api, error) {
     port:      port,
     nc:        nc,
     artifacts: artifacts,
+    enableUi:  enableUi,
   }, nil
 }
 
@@ -39,14 +46,15 @@ func (a *Api) Run(ctx context.Context) error {
 
   server := &http.Server{
     Addr:         address,
-    ReadTimeout:  10 * time.Second,
-    WriteTimeout: 10 * time.Second,
+    ReadTimeout:  60 * time.Second,
+    WriteTimeout: 0,
     IdleTimeout:  10 * time.Second,
   }
 
   router := mux.NewRouter()
 
-  router.Use(func(inner http.Handler) http.Handler {
+  ar := router.PathPrefix("/api").Subrouter().StrictSlash(true)
+  ar.Use(func(inner http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
       start := time.Now()
       defer func() {
@@ -64,8 +72,14 @@ func (a *Api) Run(ctx context.Context) error {
       inner.ServeHTTP(w, r)
     })
   })
+  ar.Use(func(inner http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+      w.Header().Add("Access-Control-Allow-Origin", "*")
+      inner.ServeHTTP(w, r)
+    })
+  })
 
-  buildRouter := router.PathPrefix("/builds").Subrouter()
+  buildRouter := ar.PathPrefix("/builds").Subrouter()
   buildRouter.Handle("", createHandlerFunc(a.nc, "build.request")).Methods(http.MethodPost)
   buildRouter.Handle("", createHandlerFuncWithCallback(a.nc, "build.list", func(r *http.Request) ([]byte, error) {
     q, err := url.QueryUnescape(r.URL.Query().Get("q"))
@@ -81,6 +95,19 @@ func (a *Api) Run(ctx context.Context) error {
     params := mux.Vars(r)
     return fmt.Sprintf("build.%s.%s.%s.%s", params["arch"], params["os"], params["ver"], params["hash"])
   })).Methods(http.MethodGet)
+
+  if a.enableUi {
+    dist, err := fs.Sub(web, "web/dist")
+    if err != nil {
+      return fmt.Errorf("failed to navigate web fs: %w", err)
+    }
+
+    router.PathPrefix("/").Handler(http.StripPrefix("/", http.FileServer(http.FS(dist))))
+    //router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    //  http.ServeFile(w, r, "./build/index.html")
+    //})
+
+  }
 
   log.Info().Msgf("api running on port %d", a.port)
   router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
@@ -143,8 +170,18 @@ func createObjectReader(obj jetstream.ObjectStore, idCb func(r *http.Request) st
     }
     defer or.Close()
 
+    oi, err := or.Info()
+    if err != nil {
+      w.WriteHeader(http.StatusInternalServerError)
+      w.Write([]byte(err.Error()))
+      return
+    }
+
+    w.Header().Set("Content-Length", fmt.Sprintf("%d", oi.Size))
+    w.Header().Set("Content-Type", "application/octet-stream")
     w.Header().Set("Content-Disposition", "attachment; filename=\"wombat\"")
     if _, err := io.Copy(w, or); err != nil {
+      log.Err(err).Msgf("failed to write object %s", id)
       w.WriteHeader(http.StatusInternalServerError)
       w.Write([]byte(err.Error()))
     }
