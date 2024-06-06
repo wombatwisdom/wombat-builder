@@ -9,6 +9,8 @@ import (
 
 func main() {
   app := &cli.App{
+    Name:  "wombat-builder",
+    Usage: "a collection of tools for generating wombat distributions",
     Commands: []*cli.Command{
       cmd.BuilderCommand,
       cmd.ServiceCommand,
