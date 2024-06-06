@@ -87,7 +87,7 @@
     {
       os: 'windows',
       arch: 'amd64',
-      name: 'Linux on AMD 64-bit',
+      name: 'Windows on AMD 64-bit',
       link: 'build.amd64.windows.1_22_2.e3a62c9055c38740',
     },
   ]
