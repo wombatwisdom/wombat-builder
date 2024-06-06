@@ -26,4 +26,6 @@ COPY --from=build /go/src/app/wombat-builder .
 
 ENTRYPOINT ["/wombat-builder"]
 
-EXPOSE 8080
+CMD ["all --ui"]
+
+EXPOSE 4430
