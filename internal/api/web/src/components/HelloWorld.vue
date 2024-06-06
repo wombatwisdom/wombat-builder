@@ -86,8 +86,8 @@
     },
     {
       os: 'windows',
-      arch: 'arm64',
-      name: 'Linux on ARM 64-bit',
+      arch: 'amd64',
+      name: 'Linux on AMD 64-bit',
       link: 'build.amd64.windows.1_22_2.e3a62c9055c38740',
     },
   ]
