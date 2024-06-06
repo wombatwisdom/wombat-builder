@@ -4,8 +4,6 @@ services:
   builder:
     image: ghcr.io/wombatwisdom/wombat-builder:main
     restart: always
-    ports:
-      - '50700:6379'
     command: ["builder", "--workers", "2"]
     environment:
       - NATS_USER_JWT=${NATS_USER_JWT}
