@@ -9,3 +9,9 @@ tasks:
       - nats --context={{.CONTEXT}} kv add builds --storage=file --max-bucket-size=500M || true
       - nats --context={{.CONTEXT}} kv add repos --storage=file --max-bucket-size=500M || true
       - nats --context={{.CONTEXT}} obj add artifacts --storage=file --max-bucket-size=3G || true
+
+
+  build:ww:
+    cmds:
+      - go mod tidy
+      - go build -o target/ww cmd/ww/*.go

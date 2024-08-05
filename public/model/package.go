@@ -1,7 +1,7 @@
 package model
 
 type (
-  Package struct {
-    Url string `json:"url"`
-  }
+	Package struct {
+		Fqn string `json:"fqn"`
+	}
 )
